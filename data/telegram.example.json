@@ -1,0 +1,7 @@
+{
+  "botUsername": "YOUR_BOT",
+  "token": "BOT_TOKEN_FROM_BOTFATHER",
+  "chatId": "PRIVATE_OR_CHANNEL_CHAT_ID",
+  "chatType": "private",
+  "chatUsername": "YOUR_USERNAME"
+}

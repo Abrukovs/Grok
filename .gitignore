@@ -1,0 +1,15 @@
+node_modules
+dist
+.output
+.nitro
+.vercel
+.tanstack
+.grok
+artifacts
+screenshots
+attachments
+.env
+.env.*
+data/telegram.json
+*.log
+.DS_Store
