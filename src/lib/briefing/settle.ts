@@ -216,7 +216,7 @@ export function evaluateTip(tip: SlimTip, event: MatchEvent): JournalVerdict | n
 
   if (market === "Фора") {
     if (hs == null || as == null) return null;
-    const m = pick.match(/^(.*)\s+([+\\u2212\\u2013-])(\d+(?:[.,]\d+)?)$/);
+    const m = pick.match(/^(.*)\s+([+\u2212\u2013-])(\d+(?:[.,]\d+)?)$/);
     if (!m) return null;
     const name = m[1].trim();
     const sign = m[2] === "+" ? 1 : -1;
@@ -269,7 +269,7 @@ export function settleTips(tips: SlimTip[], events: MatchEvent[]): Settlement[] 
 
 function splitScore(score?: string): { home: number; away: number } | null {
   if (!score) return null;
-  const m = score.match(/(\d+(?:[.,]\d+)?)\s*[:\\-–]\s*(\d+(?:[.,]\d+)?)/);
+  const m = score.match(/(\d+(?:[.,]\d+)?)\s*[:\-–]\s*(\d+(?:[.,]\d+)?)/);
   if (!m) return null;
   const home = Number.parseFloat(m[1].replace(",", "."));
   const away = Number.parseFloat(m[2].replace(",", "."));
@@ -393,7 +393,7 @@ export function explainPlayed(entry: JournalEntry): PlayedAnalysis {
   }
 
   if (entry.market === "Фора") {
-    const m = pick.match(/^(.*)\s+([+\\u2212\\u2013-])(\d+(?:[.,]\d+)?)$/);
+    const m = pick.match(/^(.*)\s+([+\u2212\u2013-])(\d+(?:[.,]\d+)?)$/);
     if (m) {
       const name = m[1].trim();
       const sign = m[2] === "+" ? 1 : -1;
