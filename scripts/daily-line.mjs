@@ -315,6 +315,100 @@ async function nbaIdeas() {
   return ideas;
 }
 
+async function loadRankings(kind) {
+  const body = await getJson(`https://site.api.espn.com/apis/site/v2/sports/tennis/${kind}/rankings`);
+  const ranks = body.rankings?.[0]?.ranks || [];
+  return ranks
+    .map((r) => ({
+      name: r.athlete?.displayName || "",
+      rank: r.current,
+      points: r.points,
+    }))
+    .filter((p) => p.name && p.rank);
+}
+
+function matchPlayer(pool, fsName) {
+  const bits = norm(fsName).split(" ").filter(Boolean);
+  if (bits.length < 2) return null;
+  const initial = bits.at(-1).length === 1 ? bits.pop() : "";
+  const last = bits.join(" ");
+  const cands = [];
+  for (const p of pool) {
+    const pbits = norm(p.name).split(" ").filter(Boolean);
+    const plast = pbits.at(-1);
+    const pfirst = pbits[0] || "";
+    const sameLast = plast === last || last.endsWith(plast) || plast.endsWith(last);
+    if (!sameLast) continue;
+    if (initial && !pfirst.startsWith(initial)) continue;
+    cands.push(p);
+  }
+  return cands.length === 1 ? cands[0] : null;
+}
+
+async function tennisIdeas() {
+  const atp = await loadRankings("atp");
+  const wta = await loadRankings("wta");
+  const ideas = [];
+  const seen = new Set();
+  let tour = "";
+  for (const off of [0, 1]) {
+    let text = "";
+    try {
+      text = await getText(`https://global.flashscore.ninja/2/x/feed/f_2_${off}_2_en_1`, FS);
+    } catch (err) {
+      console.error("tennis", err.message);
+      continue;
+    }
+    for (const rec of text.split("~")) {
+      const z = field(rec, "ZA");
+      if (z && /SINGLES/.test(z)) tour = z;
+      const home = field(rec, "AE");
+      const away = field(rec, "AF");
+      if (!home || !away || home.includes("/") || away.includes("/")) continue;
+      if (!/ATP - SINGLES|WTA - SINGLES/.test(tour)) continue;
+      if (/Qualification|Doubles/i.test(tour)) continue;
+      const unix = Number(field(rec, "AD")) * 1000;
+      if (!unix || unix < NOW - 8 * 60 * 1000 || unix > NOW + HORIZON) continue;
+      const ab = field(rec, "AB");
+      if (ab === "2" || ab === "3") continue;
+      const pool = /WTA/.test(tour) ? wta : atp;
+      const H = matchPlayer(pool, home);
+      const A = matchPlayer(pool, away);
+      if (!H && !A) continue;
+      const hr = H?.rank ?? 220;
+      const ar = A?.rank ?? 220;
+      if (hr <= 25 && ar <= 25) continue;
+      const firstFav = hr <= ar;
+      const fav = firstFav ? H : A;
+      const dogRank = firstFav ? ar : hr;
+      const favRank = firstFav ? hr : ar;
+      if (!fav || favRank > 40) continue;
+      const gap = dogRank - favRank;
+      if (gap < 40 && !(favRank <= 20 && dogRank >= 80)) continue;
+      const key = `${norm(home)}|${norm(away)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const favName = firstFav ? home : away;
+      const shortTour = tour
+        .replace("ATP - SINGLES: ", "ATP ")
+        .replace("WTA - SINGLES: ", "WTA ")
+        .replace(/ - Play Offs.*/, "")
+        .slice(0, 72);
+      const dogText = dogRank >= 220 ? "нет места в топ-150" : `рейтинг ${dogRank}`;
+      const shortPrice = favRank <= 10 && dogRank >= 120 ? " Цена обычно короткая." : "";
+      const score = Math.min(gap, 100) / 6 + (favRank <= 15 ? 4 : 0) + (dogRank >= 100 ? 2 : 0) - 1;
+      ideas.push({
+        t: unix,
+        hm: mskParts(unix).hm,
+        sport: "tennis",
+        score,
+        line: `${mskParts(unix).hm} ${home} — ${away}, победа ${favName.replace(/\.$/, "")}. Рейтинг ${favRank}, у соперника ${dogText}. ${shortTour}.${shortPrice}`,
+      });
+    }
+  }
+  return ideas;
+}
+
 async function euroIdeas() {
   const el = await getJson("https://api-live.euroleague.net/v2/competitions/E/seasons/E2026/games");
   const list = Array.isArray(el) ? el : el.data || [];
@@ -369,6 +463,7 @@ for (const [name, fn] of [
   ["hockey", hockeyIdeas],
   ["nba", nbaIdeas],
   ["euro", euroIdeas],
+  ["tennis", tennisIdeas],
 ]) {
   try {
     ideas.push(...(await fn()));
@@ -384,7 +479,7 @@ const hm = mskParts(NOW).hm;
 const lines = [
   `# Лайнер, ${date}`,
   "",
-  `${hm} по Москве. В Риге на час меньше. Собрано автоматически по таблицам, без тоталов и без ровной верхушки.`,
+  `${hm} по Москве. В Риге на час меньше. Собрано автоматически: таблица в командных видах, рейтинг в теннисе. Без тоталов и без ровной верхушки.`,
   "",
   "Рейтинг по шансу, что исход зайдёт, не по коэффициенту.",
   "",
