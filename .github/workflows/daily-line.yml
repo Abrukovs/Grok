@@ -1,0 +1,36 @@
+name: Daily line
+
+on:
+  schedule:
+    # 12:00 Riga in winter (UTC+2). GitHub may start a few minutes late.
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-line
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Build the line
+        run: node scripts/daily-line.mjs
+      - name: Commit the line
+        run: |
+          git config user.name "liner-cron"
+          git config user.email "liner-cron@users.noreply.github.com"
+          git add docs/daily
+          if git diff --cached --quiet; then
+            echo "no change"
+          else
+            git commit -m "Лайнер: линия за $(date -u +%F)"
+            git push
+          fi
